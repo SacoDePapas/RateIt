@@ -1,0 +1,26 @@
+{
+  "name": "rateit-media-journal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "prisma generate && vite build",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.24.0",
+    "@clerk/react": "^6.17.8",
+    "@prisma/client": "^6.17.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.1.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  }
+}

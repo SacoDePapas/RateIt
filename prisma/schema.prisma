@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaCategory {
+  BOOK
+  MOVIE
+  ANIME
+  MUSIC
+  TV
+}
+
+model User {
+  id         String        @id @default(cuid())
+  email      String        @unique
+  passwordHash String?
+  displayName String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  entries    MediaEntry[]
+  bookTypes  BookType[]
+  frames     RoomFrame[]
+  remoteIcons RemoteIcon[]
+}
+
+model BookType {
+  id        String       @id @default(cuid())
+  name      String
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   MediaEntry[]
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model MediaEntry {
+  id          String        @id @default(cuid())
+  title       String
+  creator     String        @default("")
+  category    MediaCategory
+  bookTypeId  String?
+  bookType    BookType?     @relation(fields: [bookTypeId], references: [id], onDelete: SetNull)
+  coverUrl    String?
+  description String        @default("")
+  opinion     String        @default("")
+  rating      Int           @default(0)
+  status      String        @default("Want to explore")
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characters  CharacterTag[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId, category])
+  @@index([bookTypeId])
+}
+
+model CharacterTag {
+  id      String     @id @default(cuid())
+  name    String
+  kind    String
+  entryId String
+  entry   MediaEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, kind])
+}
+
+model RoomFrame {
+  id       String @id @default(cuid())
+  slot     Int
+  imageUrl String?
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slot])
+}
+
+model RemoteIcon {
+  id       String @id @default(cuid())
+  section  String
+  imageUrl String?
+  glyph    String?
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, section])
+}

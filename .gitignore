@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.vercel/
+.env
+.env.*
+!.env.example
+
+# Local database files and generated SQLite journals
+prisma/*.db
+prisma/*.db-journal
+*.db
+*.db-journal
+
+# Local logs and editor files
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
