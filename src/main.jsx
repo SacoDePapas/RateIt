@@ -42,7 +42,14 @@ function App() {
   const { isLoaded, isSignedIn } = useAuth();
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
+  const [clerkTimedOut, setClerkTimedOut] = useState(false);
   const user = clerkUser?.firstName || clerkUser?.username || clerkUser?.primaryEmailAddress?.emailAddress || 'reader';
+
+  useEffect(() => {
+    if (isLoaded) return undefined;
+    const timer = window.setTimeout(() => setClerkTimedOut(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [isLoaded]);
   const [view, setView] = useState('home');
   const [category, setCategory] = useState('books');
   const [selected, setSelected] = useState(null);
@@ -61,7 +68,7 @@ function App() {
   function saveItem(updated) { setItems(prev => [updated, ...prev.filter(i => i.id !== updated.id)]); setSelected(updated); }
   function addBookType(type) { const clean = type.trim(); if (!clean || bookTypes.includes(clean)) return; setBookTypes(current => { const next = [...current, clean]; localStorage.setItem('rateit-book-types', JSON.stringify(next)); return next; }); }
 
-  if (!isLoaded) return <div className="auth-screen"><div className="auth-panel"><div className="auth-panel-inner"><p className="eyebrow">RATE.IT</p><h2>Opening your room…</h2></div></div></div>;
+  if (!isLoaded) return clerkTimedOut ? <AuthSetupError /> : <div className="auth-screen"><div className="auth-panel"><div className="auth-panel-inner"><p className="eyebrow">RATE.IT</p><h2>Opening your room…</h2><p className="auth-sub">Connecting to your secure sign-in.</p></div></div></div>;
   if (!isSignedIn) return <Auth />;
   return <div className="app-shell">
     <main>
@@ -131,6 +138,10 @@ function ProfilePanel({ user, onClose, onSignOut, onChangeUser }) {
 }
 
 function Auth() { const { openSignIn, openSignUp } = useClerk(); return <div className="auth-screen"><div className="auth-art"><div className="brand light"><span className="brand-mark">R</span><span>rate<span className="brand-dot">.</span>it</span></div><div className="auth-art-copy"><p className="eyebrow">A HOME FOR THE STORIES YOU LOVE</p><h1>Make room for<br /><em>what moves you.</em></h1><div className="tiny-shelf"><i/><i/><i/><i/><i/></div></div><p className="auth-quote">“Every story is a room you can return to.”</p></div><div className="auth-panel"><div className="auth-panel-inner"><p className="eyebrow">WELCOME BACK</p><h2>Come on in.</h2><p className="auth-sub">Your shelves have been waiting.</p><button className="button primary full" type="button" onClick={() => openSignIn()}>Enter my room <span>→</span></button><div className="auth-divider"><span>or</span></div><button className="auth0-button" type="button" onClick={() => openSignUp()}><span className="auth0-mark">◎</span> Create an account</button><p className="auth-note">Secure sign-in, password recovery, and supported social providers are handled by Clerk.</p></div></div></div>; }
+
+function AuthSetupError() { return <div className="auth-screen"><div className="auth-panel"><div className="auth-panel-inner"><p className="eyebrow">RATE.IT</p><h2>Sign-in is taking too long.</h2><p className="auth-sub">The deployment cannot reach Clerk yet. Check the Vercel environment variable and Clerk’s allowed origins, then redeploy.</p><div className="auth-note"><strong>Required:</strong> <code>VITE_CLERK_PUBLISHABLE_KEY</code><br /><strong>Also allow this Vercel URL in Clerk:</strong> Allowed Web Origins and Allowed Origins</div></div></div></div>; }
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-createRoot(document.getElementById('root')).render(<ClerkProvider publishableKey={clerkPublishableKey}><App /></ClerkProvider>);
+function Root() { return clerkPublishableKey ? <ClerkProvider publishableKey={clerkPublishableKey}><App /></ClerkProvider> : <AuthSetupError />; }
+
+createRoot(document.getElementById('root')).render(<Root />);
