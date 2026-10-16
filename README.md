@@ -9,6 +9,17 @@ RateIt is a Vite media-journal room where users can organize books, movies, anim
 3. Deploy the repository. The Vercel build runs `prisma generate && vite build`.
 4. Initialize the production schema once with `npx prisma db push` using the production `DATABASE_URL`, or replace it with a reviewed Prisma migration workflow before launch.
 
-The serverless API scaffold includes `GET`/`POST /api/entries` and `GET /api/health`. The entries endpoint verifies Clerk bearer tokens with the configured JWT public key and uses the verified Clerk subject as the database user id. Add the Clerk variables from `.env.example` to Vercel; keep `CLERK_JWT_KEY` server-only. Clerk's Publishable Key is the only auth value exposed to the browser.
+The serverless API includes authenticated CRUD for media entries and book-type management:
+
+- `GET /api/entries` lists the current user's entries.
+- `GET /api/entries?id=<id>` reads one entry.
+- `POST /api/entries` creates an entry.
+- `PATCH /api/entries?id=<id>` or `PUT` updates an entry.
+- `DELETE /api/entries?id=<id>` deletes an entry.
+- `GET /api/book-types` lists the current user's book types.
+- `POST /api/book-types` creates or returns a book type.
+- `GET /api/health` checks database availability.
+
+Every data endpoint verifies Clerk bearer tokens with the configured JWT public key and uses the verified Clerk subject as the database user id. Add the Clerk variables from `.env.example` to Vercel; keep `CLERK_JWT_KEY` server-only. Clerk's Publishable Key is the only auth value exposed to the browser.
 
 Local secrets, `.env` files, generated Prisma databases, and deployment output are excluded by `.gitignore`. The Prisma schema itself is intentionally tracked so deployments can generate and update the database client.

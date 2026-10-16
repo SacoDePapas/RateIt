@@ -26,6 +26,8 @@ const starterItems = [
 ];
 
 function Icon({ children }) { return <span className="icon" aria-hidden="true">{children}</span>; }
+function fromApiEntry(record) { return { id: record.id, category: record.category.toLowerCase() === 'book' ? 'books' : record.category.toLowerCase(), type: record.bookType?.name, title: record.title, author: record.creator, rating: record.rating, status: record.status, image: record.coverUrl, color: '#c9c5bc', accent: '#314c42', coverText: record.title, description: record.description, opinion: record.opinion, favorite: record.characters?.filter(character => character.kind === 'favorite').map(character => character.name) || [], disliked: record.characters?.filter(character => character.kind === 'disliked').map(character => character.name) || [] }; }
+function toApiEntry(item) { return { category: item.category, bookType: item.type, title: item.title, author: item.author, rating: item.rating, status: item.status, image: item.image, description: item.description, opinion: item.opinion, favorite: item.favorite, disliked: item.disliked }; }
 function Stars({ value = 0, interactive = false, onChange }) {
   return <span className={'stars ' + (interactive ? 'interactive' : '')} aria-label={`${value} out of 5 stars`}>
     {[1,2,3,4,5].map(n => <button type="button" key={n} className={n <= value ? 'star on' : 'star'} onClick={() => interactive && onChange?.(n)} aria-label={`${n} star${n > 1 ? 's' : ''}`}>★</button>)}
@@ -39,7 +41,7 @@ function Cover({ item, size = 'normal', onClick }) {
 }
 
 function App() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
   const [clerkTimedOut, setClerkTimedOut] = useState(false);
@@ -58,6 +60,16 @@ function App() {
   const [bookTypes, setBookTypes] = useState(() => { try { return JSON.parse(localStorage.getItem('rateit-book-types')) || ['Novel', 'Manga', 'Graphic novel', 'Other']; } catch { return ['Novel', 'Manga', 'Graphic novel', 'Other']; } });
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !import.meta.env.PROD) return undefined;
+    let cancelled = false;
+    getToken().then(token => fetch('/api/entries', { headers: { Authorization: `Bearer ${token}` } }))
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to load entries')))
+      .then(records => { if (!cancelled) setItems(records.map(fromApiEntry)); })
+      .catch(error => console.error('Unable to load saved entries', error));
+    return () => { cancelled = true; };
+  }, [getToken, isLoaded, isSignedIn]);
+
   const recent = items.slice(0, 3);
   const currentCategory = categories.find(c => c.id === category) || categories[0];
   const filtered = useMemo(() => items.filter(item => item.category === category), [items, category]);
@@ -65,7 +77,20 @@ function App() {
   function openLibrary(id = category) { setCategory(id); setView('library'); setSelected(null); setMenuOpen(false); }
   function openItem(item) { setSelected(item); setView('detail'); setMenuOpen(false); }
   function addEntry(categoryOverride = category) { const entryCategory = categoryOverride === 'manga' ? 'books' : categoryOverride; setSelected({ id: Date.now(), category: entryCategory, type: entryCategory === 'books' ? 'Novel' : undefined, title: 'Untitled entry', author: 'Add creator', rating: 0, status: 'Want to explore', color: '#c9c5bc', accent: '#314c42', coverText: 'YOUR\nPHOTO', description: '', opinion: '', favorite: [], disliked: [], isNew: true }); setView('detail'); }
-  function saveItem(updated) { setItems(prev => [updated, ...prev.filter(i => i.id !== updated.id)]); setSelected(updated); }
+  async function saveItem(updated) {
+    setItems(prev => [updated, ...prev.filter(i => i.id !== updated.id)]);
+    setSelected(updated);
+    if (!import.meta.env.PROD) return;
+    try {
+      const token = await getToken();
+      const isNew = updated.isNew || typeof updated.id === 'number';
+      const response = await fetch(`/api/entries${isNew ? '' : `?id=${encodeURIComponent(updated.id)}`}`, { method: isNew ? 'POST' : 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(toApiEntry(updated)) });
+      if (!response.ok) throw new Error('Unable to save entry');
+      const saved = fromApiEntry(await response.json());
+      setItems(prev => [saved, ...prev.filter(i => i.id !== updated.id && i.id !== saved.id)]);
+      setSelected(saved);
+    } catch (error) { console.error('Unable to save entry', error); }
+  }
   function addBookType(type) { const clean = type.trim(); if (!clean || bookTypes.includes(clean)) return; setBookTypes(current => { const next = [...current, clean]; localStorage.setItem('rateit-book-types', JSON.stringify(next)); return next; }); }
 
   if (!isLoaded) return clerkTimedOut ? <AuthSetupError /> : <div className="auth-screen"><div className="auth-panel"><div className="auth-panel-inner"><p className="eyebrow">RATE.IT</p><h2>Opening your room…</h2><p className="auth-sub">Connecting to your secure sign-in.</p></div></div></div>;
